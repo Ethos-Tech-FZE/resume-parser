@@ -1,0 +1,59 @@
+# Render Blueprint Configuration for ResuMate Backend
+# This file defines how Render builds and deploys your FastAPI application
+# Place at root of repository or in infra/ directory
+
+services:
+  # Type: web service (FastAPI application)
+  - type: web
+    name: resumate-backend
+    env: python
+    region: oregon  # Oregon is typically the default free tier region
+    plan: free
+    buildCommand: "pip install --upgrade pip && pip install -r backend/requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+    # Health check endpoint (Render uses this to verify your service is running)
+    healthCheckPath: /health
+
+    # Auto-deploy on push to main branch
+    branch: main
+    deployOnPush:
+      - main
+
+    # Environment variables (set in Render dashboard after deployment)
+    # These are REQUIRED variables - copy values from your .env or create new ones:
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: DATABASE_URL_SYNC
+        sync: false  # Set in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set in Render dashboard (optional - graceful degradation if not set)
+      - key: SECRET_KEY
+        generateValue: true  # Auto-generate secure random key
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://resumate-frontend.vercel.app,https://resumate-backend.onrender.com
+      - key: USE_DATABASE
+        value: "true"
+      - key: USE_CELERY
+        value: "false"
+      - key: MAX_UPLOAD_SIZE
+        value: "10485760"
+      - key: ALLOWED_EXTENSIONS
+        value: "pdf,docx,doc,txt"
+
+    # Disk storage (for runtime needs)
+    disk:
+      name: data
+      mountPath: /tmp
+      sizeGB: 1
+
+# Database service (Render PostgreSQL)
+databases:
+  - name: resumate-db
+    databaseName: resumate
+    user: resumate_user
+    plan: free
+    region: oregon
