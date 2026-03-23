@@ -42,12 +42,6 @@ services:
       - key: ALLOWED_EXTENSIONS
         value: "pdf,docx,doc,txt"
 
-    # Disk storage (for runtime needs)
-    disk:
-      name: data
-      mountPath: /tmp
-      sizeGB: 1
-
 # Database service (Render PostgreSQL)
 databases:
   - name: resumate-db
