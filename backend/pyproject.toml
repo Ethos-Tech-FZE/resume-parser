@@ -40,7 +40,8 @@ dependencies = [
     "passlib[bcrypt]==1.7.4",
     "python-dotenv==1.0.0",
     # Storage
-    "boto3==1.34.23",
+    # REMOVED 2026-03-23: Not used in codebase (~20 MB savings)
+    # "boto3==1.34.23",
     # Utilities
     "aiofiles==23.2.1",
     "httpx==0.26.0",
