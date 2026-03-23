@@ -6,7 +6,7 @@ services:
   # Type: web service (FastAPI application)
   - type: web
     name: resumate-backend
-    env: python
+    runtime: python
     region: oregon  # Oregon is typically the default free tier region
     plan: free
     buildCommand: "pip install --upgrade pip && pip install -r backend/requirements.txt"
@@ -16,9 +16,7 @@ services:
     healthCheckPath: /health
 
     # Auto-deploy on push to main branch
-    branch: main
-    deployOnPush:
-      - main
+    autoDeployTrigger: commit
 
     # Environment variables (set in Render dashboard after deployment)
     # These are REQUIRED variables - copy values from your .env or create new ones:
