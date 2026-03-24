@@ -1,6 +1,6 @@
 # ResuMate - AI-Powered Resume Parser
 
-> **Updated**: 2026-02-24 | **Status**: Bug Fix #24 Complete, Awaiting Vercel Runtime Cache Expiration (~2026-02-25) | **Tests**: 228+
+> **Updated**: 2026-03-25 | **Status**: Production Ready | **Tests**: 228+
 
 ---
 
@@ -22,15 +22,15 @@ Text Extraction (pdfplumber) + OCR Fallback (Tesseract)
 
 | Component | Technology |
 |-----------|------------|
-| Backend | FastAPI 0.109.0, Python 3.12 |
+| Backend | FastAPI 0.109.0, Python 3.12.8 |
 | OCR | Tesseract + pdf2image 1.16.3 |
 | NLP | spaCy 3.8+ (Pydantic 2.x compatible) |
 | AI | OpenAI 1.10.0 (GPT-4o-mini) |
-| Database | Supabase PostgreSQL + async SQLAlchemy |
+| Database | Supabase PostgreSQL / Render PostgreSQL + async SQLAlchemy 2.0.36 |
 | Frontend | React 18 + TypeScript 5.3 + Vite 5.0 |
 | Styling | Tailwind CSS 3.4 (navy/gold theme) |
 | State | Zustand 4.5 |
-| Deployment | Vercel serverless + Supabase |
+| Deployment | Vercel serverless / Render Blueprints |
 
 ---
 
@@ -53,11 +53,6 @@ cd frontend && npm install && npm run dev
 # Testing
 cd backend && python -m pytest tests/ -v
 cd frontend && npm test -- --run && npm run type-check
-
-# Deploy (CRITICAL: Commit changes first - Vercel deploys from git!)
-git add . && git commit -m "feat: description"
-git push origin main
-vercel --prod --scope nilukushs-projects
 ```
 
 ---
@@ -80,9 +75,9 @@ vercel --prod --scope nilukushs-projects
 
 ### Backend (.env)
 ```bash
-# Database (Supabase) - URL-encode passwords
-DATABASE_URL=postgresql+asyncpg://postgres:ENCODED_PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
-DATABASE_URL_SYNC=postgresql://postgres:ENCODED_PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+# Database (URL-encode passwords)
+DATABASE_URL=postgresql+asyncpg://postgres:ENCODED_PASSWORD@host:5432/postgres
+DATABASE_URL_SYNC=postgresql://postgres:ENCODED_PASSWORD@host:5432/postgres
 USE_DATABASE=true
 
 # AI (Optional - graceful fallback)
@@ -106,32 +101,125 @@ VITE_WS_BASE_URL=wss://resumate-backend.vercel.app/ws
 
 ---
 
-## Recent Fixes (#18-#24)
+## Dependency Compatibility Matrix
 
-| # | Issue | Resolution |
-|---|-------|------------|
-| #18 | Function detection + lazy DB | Module-level handler + lazy init pattern |
-| #19 | Python 3.12 + spaCy 3.7.2 incompatibility | Upgraded to spaCy 3.8+ |
-| #20 | Pydantic v2 compatibility | Added confection>=0.1.4, thinc>=8.3.4 |
-| #21 | Python 3.12.4 + Pydantic compatibility | Upgraded to pydantic>=2.7.4 |
-| #22 | Mangum 0.17.0 + Python 3.12 | Upgraded to mangum>=0.21.0 in requirements.txt |
-| #23 | Mangum version mismatch | Fixed pyproject.toml mangum>=0.21.0 |
-| #24 | Bundle size 401MB (runtime cache trigger) | Removed Celery, Redis, Sentry (-54MB) |
+| Package | Version | Python 3.12.8 | Notes |
+|---------|---------|---------------|-------|
+| spaCy | >=3.8.0,<4.0.0 | Yes | Native Pydantic 2.x support |
+| Pydantic | >=2.7.4,<3.0.0 | Yes | Python 3.12.4+ compatible |
+| SQLAlchemy | >=2.0.36,<3.0.0 | Yes | Python 3.14 forward-compatible |
+| Mangum | >=0.21.0,<1.0.0 | Yes | Lambda/Vercel compatible |
+| numpy | ==1.26.4 | Yes | Prebuilt wheels |
+| confection | >=0.1.4,<1.0.0 | Yes | spaCy Pydantic v2 support |
+| thinc | >=8.3.4,<9.0.0 | Yes | spaCy Pydantic v2 support |
 
-**Current Status**: Bundle 394.92 MB, awaiting Vercel runtime cache expiration. TypeError persists until cache refreshes.
+---
+
+## Production Deployment
+
+### Vercel Serverless
+
+**Deployment Workflow:**
+```bash
+# 1. Commit changes (CRITICAL - Vercel deploys from git)
+git add . && git commit -m "feat: description"
+git push origin main
+
+# 2. Deploy backend
+cd /path/to/repo
+vercel --prod --scope nilukushs-projects
+
+# 3. Verify
+vercel inspect <deployment-url> --wait && curl <url>/health
+```
+
+**Current Bundle Status:**
+| Metric | Value | Status |
+|--------|-------|--------|
+| Bundle size | 394.92 MB | Above 250MB threshold |
+| Function size | 79.18 MB | Excellent |
+| Runtime cache | N/A | Deployed successfully |
+
+**Key Rules:**
+- Run `vercel` from repo root, not subdirectories
+- Bundle >250MB triggers 24-48h runtime cache (no CLI clear available)
+- `vercel --force` clears build cache only, NOT runtime cache
+- backend/ and frontend/ are separate Vercel projects
+
+---
+
+### Render Blueprint
+
+**render.yaml Configuration:**
+```yaml
+services:
+  - type: web
+    name: resumate-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    autoDeployTrigger: commit  # FIXED: was deployOnPush
+
+databases:
+  - name: resumate-db
+    databaseName: resumate
+    user: resumate_user
+    plan: free
+    region: oregon
+```
+
+**Setup Steps:**
+```bash
+# 1. Create Blueprint from dashboard
+# https://dashboard.render.com -> New + -> Blueprint
+# Connect GitHub repo, select render.yaml
+
+# 2. Configure environment variables in dashboard
+DATABASE_URL=postgresql+asyncpg://...
+DATABASE_URL_SYNC=postgresql://...
+SECRET_KEY=...
+OPENAI_API_KEY=sk-...  # optional
+ALLOWED_ORIGINS=https://resumate-frontend.vercel.app
+USE_DATABASE=true
+USE_CELERY=false
+
+# 3. Deploy and test
+curl https://resumate-backend.onrender.com/health
+```
+
+**Bug Fix #25 - Render Configuration Fixes:**
+| Issue | Fix |
+|-------|-----|
+| `deployOnPush` deprecated | Changed to `autoDeployTrigger: commit` |
+| Persistent disk error | Removed disk (free tier limitation) |
+| Module path errors | Added `rootDir: backend` |
+| Python 3.14 incompatibility | Upgraded SQLAlchemy to 2.0.36 |
+| spaCy compatibility | Pinned Python to 3.12.8 in runtime.txt |
+
+**Render-Specific Troubleshooting:**
+```bash
+# View logs in dashboard: Logs tab
+# Common issue: Port binding - Render uses $PORT env var automatically
+# Database: Use Internal URL for connections within Render
+```
 
 ---
 
 ## Critical Patterns
 
 ### 1. Lazy Database Initialization
-Serverless functions must NOT initialize resources at import time.
 ```python
-# BROKEN
-engine = db_manager.init_engine(...)  # Crashes at import!
+# BROKEN - crashes at import in serverless
+engine = db_manager.init_engine(...)
 
-# WORKING
-def get_engine():
+# WORKING - lazy initialization
+engine: Optional[AsyncEngine] = None
+
+def get_engine() -> AsyncEngine:
     global engine
     if engine is None:
         engine = db_manager.init_engine(...)
@@ -139,96 +227,20 @@ def get_engine():
 ```
 
 ### 2. Vercel Function Detection
-Handler must be module-level variable for AST detection.
 ```python
-# BROKEN
+# BROKEN - function not detected
 def handler(event, context):
     return Mangum(app, lifespan="off")(event, context)
 
-# WORKING
-handler = Mangum(app, lifespan="off")  # Module-level variable
+# WORKING - module-level variable
+handler = Mangum(app, lifespan="off")
 ```
 
-### 3. Python 3.12 Dependency Versions
+### 3. Graceful Health Degradation
 ```python
-numpy==1.26.4        # Prebuilt wheels for Python 3.12
-spacy>=3.8.0,<4.0.0  # Native Pydantic 2.x support
-pydantic>=2.7.4      # Python 3.12.4 compatible
-mangum>=0.21.0,<1.0.0 # Python 3.12 compatible
-confection>=0.1.4    # Pydantic v2 support for spaCy
-thinc>=8.3.4         # Pydantic v2 support for spaCy
+health_status["status"] = "degraded"  # NOT "unhealthy"
+return JSONResponse(content=health_status, status_code=200)  # Always 200
 ```
-
-### 4. Graceful Health Degradation
-```python
-health_status["status"] = "degraded"  # NOT "unhealthy" - always return 200 OK
-```
-
-### 5. PEP 668 Compliance
-```bash
-# Vercel/serverless containers
-pip install --break-system-packages -r requirements.txt
-```
-
----
-
-## Vercel Deployment
-
-### Deployment Workflow
-1. **Code changes**: Edit files locally
-2. **Test locally**: `python -m pytest` or `npm test`
-3. **Commit**: `git add . && git commit -m "description"`
-4. **Push**: `git push origin main` ← **Vercel deploys from git, not local files!**
-5. **Deploy**: `vercel --prod --scope nilukushs-projects`
-6. **Verify**: `vercel inspect <url> --wait && curl <url>/health`
-
-### Current Bundle Status
-| Metric | Value | Status |
-|--------|-------|--------|
-| Bundle size | 394.92 MB | ⚠️ Above 250MB threshold |
-| Function size | 79.18 MB | ✅ Excellent |
-| Runtime cache | Active | Expires ~2026-02-25 |
-
-### Key Rules
-- **Monorepo**: Run `vercel` from repo root, not subdirectories
-- **Runtime cache**: Bundle >250MB triggers 24-48h cache (NO CLI clear available)
-- **Build cache**: Cleared by `vercel --force` (does NOT affect runtime cache)
-- **Projects**: `backend/` and `frontend/` are separate Vercel projects
-
-### Debugging Commands
-```bash
-# Inspect deployment (bundle size, build logs)
-vercel inspect <deployment-url> --wait
-
-# Stream real-time logs (runtime errors)
-vercel logs <deployment-url>
-
-# Test health endpoint
-curl -s <deployment-url>/health
-
-# Monitor long-running deployments
-vercel inspect <url> --wait  # Shows real-time build progress
-
-# Check for TypeError in logs
-vercel logs <url> --n 50 | grep -i "TypeError\|issubclass"
-
-# Verify unused dependencies before removal
-grep -r "import celery\|from celery" backend/app/  # Check if actually used
-```
-
-### Cache Status Indicators
-| Log Message | Meaning |
-|-------------|---------|
-| "Using cached runtime dependencies" | Stale cache (wait 24-48h) |
-| "Installing runtime dependencies" | Fresh install (good!) |
-| "Skipping build cache" | Build cache bypassed |
-
-### Bundle Size Targets
-| Bundle Size | Runtime Cache | Cold Start | Recommendation |
-|-------------|---------------|------------|----------------|
-| <250MB | No | ~2s | ✅ Target |
-| 250-400MB | Yes (24-48h) | ~5s | ⚠️ Reduce dependencies |
-| >400MB | Yes (24-48h) | ~10s+ | ❌ Must optimize |
 
 ---
 
@@ -236,14 +248,11 @@ grep -r "import celery\|from celery" backend/app/  # Check if actually used
 
 | Rule | Details |
 |------|---------|
-| Sync files | Always keep `pyproject.toml` and `requirements.txt` synchronized |
-| Vercel priority | Vercel reads `pyproject.toml` first |
+| Sync files | Keep `pyproject.toml` and `requirements.txt` synchronized |
 | Version specifiers | Use `>=` in pyproject.toml, `==` in requirements.txt |
-| Verification | Compare Mangum/Pydantic/spaCy versions across both files before deploying |
-| Mismatch symptoms | TypeError in Vercel runtime code (vc_init.py), not your code |
-| Sync tools | Use `pip-compile` or Poetry for automatic consistency |
-| **Before removing dependencies** | Verify usage: `grep -r "import <lib>" backend/app/` |
-| **Git workflow** | Vercel deploys from git - commit & push before deploying! |
+| Verification | Compare versions across both files before deploying |
+| Before removing | Verify: `grep -r "import <lib>" backend/app/` |
+| Git workflow | Deploy from git - commit & push before deploying |
 
 ---
 
@@ -253,10 +262,25 @@ grep -r "import celery\|from celery" backend/app/  # Check if actually used
 |---------|------------|-----|
 | TypeError in vc_init.py | Old Mangum version in runtime cache | Update pyproject.toml, wait 24-48h |
 | FUNCTION_INVOCATION_FAILED | Runtime cache incompatibility | Same as above |
-| ModuleNotFoundError | Missing dependency | Check pyproject.toml, redeploy |
-| Build succeeds, invocation fails | Bundle size >250MB with stale cache | Reduce bundle or wait for expiration |
-| **Vercel deploying old code** | **Forgot to commit/push git changes** | **`git add . && git commit && git push`** |
-| **Changes not reflected** | **Vercel caches git repo** | **Force new deployment with `vercel --force`** |
+| ModuleNotFoundError | Missing dependency | Check requirements.txt, redeploy |
+| Vercel deploying old code | Forgot to commit/push git | `git add . && git commit && git push` |
+| Render build fails | Python version mismatch | Pin to 3.12.8 in runtime.txt |
+| spaCy import error | Pydantic v2 incompatibility | Add confection>=0.1.4, thinc>=8.3.4 |
+
+---
+
+## Recent Fixes (#18-#25)
+
+| # | Issue | Resolution |
+|---|-------|------------|
+| #18 | Function detection + lazy DB | Module-level handler + lazy init |
+| #19 | Python 3.12 + spaCy 3.7.2 | Upgraded to spaCy 3.8+ |
+| #20 | Pydantic v2 compatibility | Added confection>=0.1.4, thinc>=8.3.4 |
+| #21 | Python 3.12.4 + Pydantic | Upgraded to pydantic>=2.7.4 |
+| #22 | Mangum 0.17.0 + Python 3.12 | Upgraded to mangum>=0.21.0 |
+| #23 | Mangum version mismatch | Fixed pyproject.toml mangum>=0.21.0 |
+| #24 | Bundle size 401MB | Removed Celery, Redis, Sentry (-54MB) |
+| #25 | Render deployment errors | deployOnPush->autoDeployTrigger, rootDir, SQLAlchemy 2.0.36 |
 
 ---
 
@@ -264,8 +288,9 @@ grep -r "import celery\|from celery" backend/app/  # Check if actually used
 
 | Service | URL |
 |---------|-----|
-| Backend | https://resumate-backend.vercel.app |
+| Backend (Vercel) | https://resumate-backend.vercel.app |
 | Frontend | https://resumate-frontend.vercel.app |
+| Backend (Render) | https://resumate-backend.onrender.com |
 
 ---
 
@@ -282,22 +307,22 @@ grep -r "import celery\|from celery" backend/app/  # Check if actually used
 | Document | Purpose |
 |----------|---------|
 | `docs/PROGRESS.md` | Progress tracking with all bug fixes |
-| `docs/BUG-FIX-24-BUNDLE-OPTIMIZATION.md` | Celery/Redis/Sentry removal |
-| `docs/BUG-FIX-23-VERCEL-RUNTIME-CACHE.md` | Mangum version mismatch fix |
-| `docs/DEPLOYMENT-TROUBLESHOOTING.md` | Full deployment guide |
+| `docs/BUG-FIX-24-OPTIMIZE-BUNDLE-SIZE.md` | Celery/Redis/Sentry removal |
+| `docs/BUG-FIX-25-HANDLER-PATH-CORRECTION.md` | Vercel handler path fix |
+| `docs/RENDER-DEPLOYMENT-GUIDE.md` | Render Blueprint setup |
 | `docs/DATABASE_SETUP.md` | Database setup |
 | `docs/SUPABASE_SETUP.md` | Supabase-specific setup |
 
 ---
 
-## Session Learnings (2026-02-24)
+## Session Learnings
 
-**Vercel Git Workflow**: Always commit and push before deploying - Vercel reads from git repository, not local filesystem
+**Git Workflow**: Always commit and push before deploying - platforms read from git repository
 
-**Dependency Removal Safety**: Before removing dependencies, verify they're unused: `grep -r "import <lib>" backend/app/`
+**Dependency Safety**: Before removing, verify: `grep -r "import <lib>" backend/app/`
 
-**Runtime vs Build Cache**: `vercel --force` clears build cache only; runtime cache (24-48h expiration) has no CLI clear command when bundle >250MB
+**Runtime vs Build Cache**: `vercel --force` clears build cache only; runtime cache has no CLI clear
 
-**Background Deployment Monitoring**: Use `vercel inspect <url> --wait` to monitor long-running deployments in real-time
+**Render Blueprints**: Don't count against project limits - use render.yaml for IaC deployment
 
-**Bundle Size Strategy**: Target <250MB to avoid runtime caching. If unavoidable, optimize `.vercelignore` and remove heavy dependencies (Celery/Redis/Sentry = ~54MB savings potential)
+**Python Pinning**: Always pin Python version in runtime.txt for spaCy compatibility
