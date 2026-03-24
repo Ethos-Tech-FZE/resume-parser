@@ -280,17 +280,21 @@ return JSONResponse(content=health_status, status_code=200)  # Always 200
 | #22 | Mangum 0.17.0 + Python 3.12 | Upgraded to mangum>=0.21.0 |
 | #23 | Mangum version mismatch | Fixed pyproject.toml mangum>=0.21.0 |
 | #24 | Bundle size 401MB | Removed Celery, Redis, Sentry (-54MB) |
-| #25 | Render deployment errors | deployOnPush->autoDeployTrigger, rootDir, SQLAlchemy 2.0.36 |
+| #25 | Render deployment errors | deployOnPush->autoDeployTrigger, rootDir, SQLAlchemy 2.0.48, Python 3.12.8 pin |
 
 ---
 
 ## Deployment URLs
 
-| Service | URL |
-|---------|-----|
-| Backend (Vercel) | https://resumate-backend.vercel.app |
-| Frontend | https://resumate-frontend.vercel.app |
-| Backend (Render) | https://resumate-backend.onrender.com |
+| Service | URL | Status |
+|---------|-----|--------|
+| **Backend (Render)** | https://resumate-backend-4s4r.onrender.com | ✅ LIVE |
+| **Backend (Vercel)** | https://resumate-backend.vercel.app | ✅ LIVE |
+| **Frontend (Vercel)** | https://resumate-frontend.vercel.app | ✅ LIVE |
+
+### Health Endpoints
+- **Render**: https://resumate-backend-4s4r.onrender.com/health
+- **Vercel**: https://resumate-backend.vercel.app/health |
 
 ---
 
@@ -307,6 +311,7 @@ return JSONResponse(content=health_status, status_code=200)  # Always 200
 | Document | Purpose |
 |----------|---------|
 | `docs/PROGRESS.md` | Progress tracking with all bug fixes |
+| `docs/BUG-FIX-25-RENDER-DEPLOYMENT.md` | Render deployment complete guide |
 | `docs/BUG-FIX-24-OPTIMIZE-BUNDLE-SIZE.md` | Celery/Redis/Sentry removal |
 | `docs/BUG-FIX-25-HANDLER-PATH-CORRECTION.md` | Vercel handler path fix |
 | `docs/RENDER-DEPLOYMENT-GUIDE.md` | Render Blueprint setup |
@@ -322,6 +327,14 @@ return JSONResponse(content=health_status, status_code=200)  # Always 200
 **Dependency Safety**: Before removing, verify: `grep -r "import <lib>" backend/app/`
 
 **Runtime vs Build Cache**: `vercel --force` clears build cache only; runtime cache has no CLI clear
+
+**Render Deployment** (2026-03-25):
+- Render aggressively caches Python runtimes - use `runtime.txt` + `PYTHON_VERSION` env var
+- `autoDeployTrigger: commit` replaces deprecated `deployOnPush`
+- `rootDir` critical for monorepo module paths
+- `buildFilter: "*"` helps with cache invalidation
+- Python 3.12.8 is the sweet spot for spaCy 3.8 + Pydantic 2.7+ + SQLAlchemy 2.0.36+
+- Free tier doesn't support persistent disks
 
 **Render Blueprints**: Don't count against project limits - use render.yaml for IaC deployment
 
