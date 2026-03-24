@@ -27,6 +27,8 @@ services:
     # Environment variables (set in Render dashboard after deployment)
     # These are REQUIRED variables - copy values from your .env or create new ones:
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
       - key: DATABASE_URL
         sync: false  # Set in Render dashboard
       - key: DATABASE_URL_SYNC
