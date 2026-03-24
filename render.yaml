@@ -9,7 +9,8 @@ services:
     runtime: python
     region: oregon  # Oregon is typically the default free tier region
     plan: free
-    buildCommand: "pip install --upgrade pip && pip install -r backend/requirements.txt"
+    rootDir: backend  # Work from backend/ directory
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
     # Health check endpoint (Render uses this to verify your service is running)
