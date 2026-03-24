@@ -12,7 +12,8 @@ python-multipart==0.0.6
 mangum>=0.21.0,<1.0.0
 
 # Database
-sqlalchemy==2.0.25
+# Bug Fix: Upgraded to SQLAlchemy 2.0.36 for Python 3.14 compatibility
+sqlalchemy>=2.0.36,<3.0.0
 asyncpg>=0.30.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
@@ -63,5 +64,4 @@ httpx==0.26.0
 
 # PDF Generation
 reportlab==4.0.7
-# Cache invalidation timestamp: 1771944127-v2 (Python 3.12 requirement bump)
-# Cache invalidation timestamp: 1771944127
+# Cache invalidation timestamp: 1774254000-v3 (boto3 removal + runtime cache refresh attempt)
