@@ -13,6 +13,11 @@ services:
     buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
+    # Force rebuild by watching runtime.txt
+    buildFilter:
+      paths:
+        - runtime.txt
+
     # Health check endpoint (Render uses this to verify your service is running)
     healthCheckPath: /health
 
