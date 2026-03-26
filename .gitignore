@@ -53,3 +53,6 @@ docs/supabase.md
 docs/render.md
 docs/img.png
 docs/github.md
+# AI development tools (Serena, Claude Code)
+.serena/
+.claude/
