@@ -89,7 +89,7 @@ ENABLE_OCR_FALLBACK=true
 
 # App
 SECRET_KEY=...
-ALLOWED_ORIGINS=https://resumate-frontend.vercel.app,http://localhost:3000
+ALLOWED_ORIGINS=https://resumate-frontend-three.vercel.app,http://localhost:3000
 USE_CELERY=false
 ```
 
@@ -183,7 +183,7 @@ DATABASE_URL=postgresql+asyncpg://...
 DATABASE_URL_SYNC=postgresql://...
 SECRET_KEY=...
 OPENAI_API_KEY=sk-...  # optional
-ALLOWED_ORIGINS=https://resumate-frontend.vercel.app
+ALLOWED_ORIGINS=https://resumate-frontend-three.vercel.app
 USE_DATABASE=true
 USE_CELERY=false
 
@@ -289,7 +289,7 @@ return JSONResponse(content=health_status, status_code=200)  # Always 200
 | Service | URL | Status |
 |---------|-----|--------|
 | **Backend (Render)** | https://resumate-backend-4s4r.onrender.com | ✅ LIVE |
-| **Frontend (Vercel)** | https://resumate-frontend.vercel.app | ✅ LIVE |
+| **Frontend (Vercel)** | https://resumate-frontend-three.vercel.app | ✅ LIVE |
 
 ### Health Endpoints
 - **Render**: https://resumate-backend-4s4r.onrender.com/health
