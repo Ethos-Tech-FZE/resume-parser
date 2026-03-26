@@ -114,6 +114,14 @@ class DatabaseManager:
             "pool_pre_ping": pool_pre_ping,
             "pool_size": pool_size,
             "max_overflow": max_overflow,
+            # Pass connect_args for asyncpg configuration
+            "connect_args": {
+                # Required for Supabase PgBouncer transaction mode
+                # Disables asyncpg statement cache to avoid prepared statement errors
+                # See: https://github.com/magicstack/asyncpg/issues/523
+                "statement_cache_size": 0,
+                "server_settings": {"jit": "off"}  # Improve query planning
+            },
         }
 
         # Use NullPool for testing to avoid connection issues
