@@ -43,7 +43,6 @@ from app.services.export_service import (
 
 
 # Default base URL for share links if not configured
-DEFAULT_BASE_URL = "http://localhost:3000"
 
 
 # Create router with prefix and tags
@@ -165,7 +164,7 @@ async def create_resume_share(resume_id: str, db=Depends(get_db)) -> Dict:
     share_data = await _create_share(resume_id, db)
 
     # Construct share URL with /shared/ prefix for public access
-    share_url = f"{settings.allowed_origins_list[0]}/shared/{share_data['share_token']}"
+    share_url = f"{settings.share_base_url}/shared/{share_data['share_token']}"
 
     return {
         "share_token": share_data["share_token"],
@@ -210,7 +209,7 @@ async def get_resume_share(resume_id: str, db=Depends(get_db)) -> Dict:
         )
 
     # Construct share URL with /shared/ prefix for public access
-    share_url = f"{settings.allowed_origins_list[0]}/shared/{share['share_token']}"
+    share_url = f"{settings.share_base_url}/shared/{share['share_token']}"
 
     return {
         "share_token": share["share_token"],
@@ -416,7 +415,7 @@ async def export_resume_whatsapp(resume_id: str, db=Depends(get_db)) -> Dict:
         )
 
     # Generate WhatsApp link
-    base_url = settings.allowed_origins_list[0] if settings.allowed_origins_list else DEFAULT_BASE_URL
+    base_url = settings.share_base_url
     whatsapp_url = generate_whatsapp_link(resume_data, base_url)
 
     return {
@@ -457,7 +456,7 @@ async def export_resume_telegram(resume_id: str, db=Depends(get_db)) -> Dict:
         share_token = share_data["share_token"]
 
     # Construct share URL
-    base_url = settings.allowed_origins_list[0] if settings.allowed_origins_list else DEFAULT_BASE_URL
+    base_url = settings.share_base_url
     share_url = f"{base_url}/shared/{share_token}"
 
     # Generate Telegram link with share URL
@@ -494,7 +493,7 @@ async def export_resume_email(resume_id: str, db=Depends(get_db)) -> Dict:
         )
 
     # Generate email link
-    base_url = settings.allowed_origins_list[0] if settings.allowed_origins_list else DEFAULT_BASE_URL
+    base_url = settings.share_base_url
     mailto_url = generate_email_link(resume_data, base_url)
 
     return {

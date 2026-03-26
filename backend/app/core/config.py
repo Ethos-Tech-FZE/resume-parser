@@ -78,6 +78,12 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed CORS origins"
     )
 
+    # Share URL Configuration
+    SHARE_BASE_URL: str = Field(
+        default="",
+        description="Base URL for share links (defaults to first ALLOWED_ORIGIN if empty)"
+    )
+
     # File Upload
     MAX_UPLOAD_SIZE: int = Field(
         default=10485760,  # 10MB
@@ -142,6 +148,30 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         """Return CORS origins as a list."""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def share_base_url(self) -> str:
+        """
+        Get share base URL with fallback to first allowed origin.
+        
+        This provides a flexible configuration for share link generation:
+        1. If SHARE_BASE_URL is explicitly set, use it (production deployment)
+        2. Otherwise, fall back to ALLOWED_ORIGINS[0] (backward compatibility)
+        3. If both are empty, default to localhost (development)
+        
+        Returns:
+            str: The base URL to use for constructing share links
+        """
+        # Explicit configuration takes priority
+        if self.SHARE_BASE_URL and self.SHARE_BASE_URL.strip():
+            return self.SHARE_BASE_URL.strip()
+        
+        # Fallback to first allowed origin (backward compatible)
+        if self.allowed_origins_list:
+            return self.allowed_origins_list[0]
+        
+        # Ultimate fallback to localhost for development
+        return "http://localhost:3000"
 
     @property
     def is_development(self) -> bool:
