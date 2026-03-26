@@ -47,3 +47,9 @@ logs/
 .volumes/
 .vercel
 .env*.local
+
+# Sensitive documents
+docs/supabase.md
+docs/render.md
+docs/img.png
+docs/github.md
