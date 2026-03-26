@@ -11,7 +11,7 @@
 
 **Project Health:** EXCELLENT
 - Backend: **LIVE on Render** ✅
-- Backend: **LIVE on Vercel** ✅
+- Backend: ~~LIVE on Vercel~~ (Retired - migrated to Render)
 - Frontend: Full-featured React application on Vercel
 - Database: Supabase PostgreSQL ready (configuration needed for Render)
 
@@ -50,13 +50,12 @@ FastAPI:    0.109.0
 | Service | URL |
 |---------|-----|
 | Backend (Render) | https://resumate-backend-4s4r.onrender.com |
-| Backend (Vercel) | https://resumate-backend.vercel.app |
 | Frontend (Vercel) | https://resumate-frontend.vercel.app |
 
 **Remaining Tasks:**
 1. Configure DATABASE_URL in Render Dashboard
 2. Run database migrations via Shell
-3. Update frontend to point to Render backend (optional)
+3. ~~Update frontend to point to Render backend~~ ✅ COMPLETED
 4. Test full application flow
 
 **Key Learnings:**

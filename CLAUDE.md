@@ -95,8 +95,8 @@ USE_CELERY=false
 
 ### Frontend (.env)
 ```bash
-VITE_API_BASE_URL=https://resumate-backend.vercel.app/v1
-VITE_WS_BASE_URL=wss://resumate-backend.vercel.app/ws
+VITE_API_BASE_URL=https://resumate-backend-4s4r.onrender.com/v1
+VITE_WS_BASE_URL=wss://resumate-backend-4s4r.onrender.com/ws
 ```
 
 ---
@@ -289,12 +289,10 @@ return JSONResponse(content=health_status, status_code=200)  # Always 200
 | Service | URL | Status |
 |---------|-----|--------|
 | **Backend (Render)** | https://resumate-backend-4s4r.onrender.com | ✅ LIVE |
-| **Backend (Vercel)** | https://resumate-backend.vercel.app | ✅ LIVE |
 | **Frontend (Vercel)** | https://resumate-frontend.vercel.app | ✅ LIVE |
 
 ### Health Endpoints
 - **Render**: https://resumate-backend-4s4r.onrender.com/health
-- **Vercel**: https://resumate-backend.vercel.app/health |
 
 ---
 
