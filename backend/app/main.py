@@ -6,6 +6,7 @@ includes all API routers, and defines health check endpoints.
 """
 
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
@@ -13,20 +14,61 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import db_manager, get_db
 from app.api import resumes, shares
 from app.api.websocket import manager
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Create FastAPI application instance
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for FastAPI application.
+    
+    This function manages the application startup and shutdown lifecycle:
+    - Startup: Initializes the database engine
+    - Shutdown: Closes database connections
+    
+    This ensures the database is ready before handling any requests,
+    which is critical for local development and production deployments.
+    
+    For Vercel serverless deployments, the lifespan handler is ignored
+    (lifespan="off" in Mangum), so lazy initialization is still used.
+    
+    Yields:
+        None: Control is yielded to the application during its lifetime
+    """
+    # Startup: Initialize database
+    logger.info("🚀 Application startup - Initializing database engine...")
+    try:
+        db_manager.init_engine(echo=settings.is_development)
+        logger.info("✅ Database engine initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize database: {e}")
+        # Don't raise - allow app to start in degraded mode
+        # Health check will show database as disconnected
+    
+    yield
+    
+    # Shutdown: Close database connections
+    logger.info("🛑 Application shutdown - Closing database connections...")
+    try:
+        await db_manager.close()
+        logger.info("✅ Database connections closed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error closing database: {e}")
+
+
+# Create FastAPI application instance with lifespan manager
 app = FastAPI(
     title="ResuMate API",
     description="Smart Resume Parser API",
     version=settings.APP_VERSION,
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None,
+    lifespan=lifespan,  # ← Add lifespan manager
 )
 
 # Configure CORS middleware
