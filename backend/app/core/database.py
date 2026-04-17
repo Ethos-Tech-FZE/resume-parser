@@ -93,17 +93,20 @@ class DatabaseManager:
     def init_engine(
         self,
         echo: bool = False,
-        pool_size: int = 5,
-        max_overflow: int = 10,
+        pool_size: int = 3,
+        max_overflow: int = 2,
         pool_pre_ping: bool = True,
     ) -> AsyncEngine:
         """
         Initialize the database engine and session factory.
 
+        Optimized for Supabase pooler with high-latency connections (~1-2s per connection).
+        Uses conservative pool sizes to avoid timeout storms when creating connections.
+
         Args:
             echo: If True, log all SQL statements.
-            pool_size: The size of the connection pool.
-            max_overflow: The max overflow size of the pool.
+            pool_size: The size of the connection pool (default 3 for remote DB).
+            max_overflow: The max overflow size of the pool (default 2, max 5 total).
             pool_pre_ping: If True, test connections before using.
 
         Returns:
@@ -114,13 +117,20 @@ class DatabaseManager:
             "pool_pre_ping": pool_pre_ping,
             "pool_size": pool_size,
             "max_overflow": max_overflow,
+            # Recycle connections after 20 minutes to avoid stale connections
+            "pool_recycle": 1200,
             # Pass connect_args for asyncpg configuration
             "connect_args": {
                 # Required for Supabase PgBouncer transaction mode
                 # Disables asyncpg statement cache to avoid prepared statement errors
                 # See: https://github.com/magicstack/asyncpg/issues/523
                 "statement_cache_size": 0,
-                "server_settings": {"jit": "off"}  # Improve query planning
+                "server_settings": {"jit": "off"},  # Improve query planning
+                # Set connection timeout to 60 seconds to handle slow network
+                # Default is 30s which may be exceeded for pooler connections
+                "timeout": 60,
+                # Set command timeout for queries (5 minutes for long operations)
+                "command_timeout": 300,
             },
         }
 

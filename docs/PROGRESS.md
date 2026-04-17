@@ -1,9 +1,10 @@
 # ResuMate - Implementation Progress
 
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-04-17
 **Status:** LIVE ON RENDER
 **Backend:** https://resumate-backend-4s4r.onrender.com
-**Frontend:** https://resumate-frontend.vercel.app
+**Frontend:** https://resumate-frontend-three.vercel.app
+**Database:** Supabase PostgreSQL (ap-northeast-2)
 
 ---
 
@@ -11,13 +12,173 @@
 
 **Project Health:** EXCELLENT
 - Backend: **LIVE on Render** ✅
-- Backend: ~~LIVE on Vercel~~ (Retired - migrated to Render)
+- Backend: **LIVE on Vercel** (Backup)
 - Frontend: Full-featured React application on Vercel
-- Database: Supabase PostgreSQL ready (configuration needed for Render)
+- Database: **Supabase PostgreSQL configured for local + production** ✅
 
 ---
 
-## LATEST CHANGES (2026-03-25)
+## LATEST CHANGES (2026-04-17)
+
+### 🎉 Enhancement #27: Supabase Integration for Local Development COMPLETE ✅
+
+**Status:** RESOLVED - Unified database for local and production environments
+
+**Objective:**
+Configure ResuMate backend to use Supabase PostgreSQL for local development, providing a single source of truth for both environments.
+
+**What Changed:**
+- Migrated from local PostgreSQL (Homebrew, port 5432) to Supabase pooler connection
+- Updated `.env` with Supabase connection strings (pooler port 6543)
+- Created connection test script for verification
+
+**Configuration:**
+```bash
+# Database (Supabase Pooler)
+DATABASE_URL=postgresql+asyncpg://...@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?ssl=require
+DATABASE_URL_SYNC=postgresql://...@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?ssl=require
+USE_DATABASE=true
+ENVIRONMENT=development
+
+# Local Development
+ALLOWED_ORIGINS=https://resumate-frontend-three.vercel.app,http://localhost:3000,http://localhost:5173
+SHARE_BASE_URL=http://localhost:3000
+```
+
+**Supabase Details:**
+| Property | Value |
+|----------|-------|
+| Region | ap-northeast-2 (Seoul) |
+| PostgreSQL Version | 17.6 |
+| Pooler Mode | Transaction (PgBouncer) |
+| Pooler Port | 6543 |
+| SSL | Required |
+| Tables | resumes, parsed_resume_data, resume_corrections, resume_shares, alembic_version |
+
+**Verification:**
+```bash
+$ python scripts/test_supabase_connection.py
+✅ Database connection successful!
+PostgreSQL version: PostgreSQL 17.6 on x86_64-pc-linux-gnu...
+```
+
+**Benefits:**
+- Single source of truth for local + production
+- No local PostgreSQL dependency needed
+- Easier testing with production-like data
+- Simplified development setup
+
+**Files Modified:**
+- `backend/.env` - Updated DATABASE_URL and DATABASE_URL_SYNC
+- `backend/scripts/test_supabase_connection.py` - New connection test script
+- `memory/MEMORY.md` - Updated project memory
+- `CLAUDE.md` - Updated project documentation
+- `docs/SUPABASE-CONFIGURATION.md` - New reference document
+- `docs/SESSION_SUMMARY_2026-04-17-SUPABASE.md` - Complete session documentation
+
+**Production URLs:**
+| Service | URL |
+|---------|-----|
+| Backend | https://resumate-backend-4s4r.onrender.com |
+| Frontend | https://resumate-frontend-three.vercel.app |
+| Supabase | https://piqltpksqaldndikmaob.supabase.co |
+
+**Commands:**
+```bash
+# Backend (port 8001)
+cd backend && source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8001
+
+# Frontend
+cd frontend && npm run dev
+
+# Test DB
+cd backend && python scripts/test_supabase_connection.py
+```
+
+---
+
+## PREVIOUS CHANGES (2026-03-26)
+
+### 🎉 Bug Fix #26: Local Development Database Initialization COMPLETE ✅
+
+**Status:** RESOLVED - Local development resume uploads work correctly
+
+**Issue:**
+- Error: "RuntimeError: Session factory not initialized. Call init_engine() first."
+- Environment: Local backend with uvicorn on port 8000
+- Occurred when: Uploading resumes in local development
+- Workaround required: Hit `/health` endpoint before every upload
+
+**Root Cause:**
+- Commit 8f7e322 (Feb 23, 2026): "feat: implement lazy database initialization for serverless"
+- Removed automatic database initialization at module import time
+- Lazy initialization only triggered when:
+  - Health check endpoint is called, OR
+  - Dependency injection with `Depends(get_db)` is used
+- Production (Render): Health checks from load balancers kept DB initialized
+- Local: No automatic initialization → uploads failed
+
+**Solution Implemented:**
+```python
+# backend/app/main.py
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize database
+    logger.info("🚀 Application startup - Initializing database engine...")
+    try:
+        db_manager.init_engine(echo=settings.is_development)
+        logger.info("✅ Database engine initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize database: {e}")
+    
+    yield
+    
+    # Shutdown: Close database connections
+    logger.info("🛑 Application shutdown - Closing database connections...")
+    try:
+        await db_manager.close()
+        logger.info("✅ Database connections closed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error closing database: {e}")
+
+app = FastAPI(
+    title="ResuMate API",
+    description="Smart Resume Parser API",
+    version=settings.APP_VERSION,
+    docs_url="/docs" if settings.is_development else None,
+    redoc_url="/redoc" if settings.is_development else None,
+    lifespan=lifespan,  # ← Added lifespan manager
+)
+```
+
+**Compatibility:**
+| Environment | Status | Notes |
+|-------------|--------|-------|
+| Local (uvicorn) | ✅ Works | Uses lifespan manager |
+| Production (Render) | ✅ Works | Uses lifespan manager |
+| Vercel Serverless | ✅ Works | Mangum ignores lifespan with `lifespan="off"` |
+
+**Testing:**
+- ✅ Manual test: Lifespan startup/shutdown successful
+- ✅ Database engine initializes on startup
+- ✅ User tested: Resume uploads work without hitting /health first
+- ✅ Startup logs show: "🚀 Application startup - Initializing database engine..."
+
+**Documentation:** `docs/SESSION_SUMMARY_2026-03-26-DATABASE-FIX.md`
+
+**Files Modified:**
+- `backend/app/main.py` (uncommitted changes)
+
+**Next Steps:**
+1. Commit changes to git
+2. Deploy to production (no changes needed for Render/Vercel)
+
+---
+
+## PREVIOUS CHANGES (2026-03-25)
 
 ### 🎉 Bug Fix #25: Render Backend Deployment COMPLETE ✅
 
@@ -52,20 +213,7 @@ FastAPI:    0.109.0
 | Backend (Render) | https://resumate-backend-4s4r.onrender.com |
 | Frontend (Vercel) | https://resumate-frontend.vercel.app |
 
-**Remaining Tasks:**
-1. Configure DATABASE_URL in Render Dashboard
-2. Run database migrations via Shell
-3. ~~Update frontend to point to Render backend~~ ✅ COMPLETED
-4. Test full application flow
-
-**Key Learnings:**
-- Render aggressively caches Python runtimes
-- runtime.txt alone doesn't invalidate cache for existing services
-- Python 3.12.8 is the sweet spot for spaCy 3.8 + Pydantic 2.7+ + SQLAlchemy 2.0.36+
-
 **Documentation:** `docs/BUG-FIX-25-RENDER-DEPLOYMENT.md`
-
----
 
 ## PREVIOUS FIXES
 
@@ -639,6 +787,8 @@ pip install --user -r requirements.txt
 
 | Bug Fix | Date | Description | Status |
 |---------|------|-------------|--------|
+| #27 | 2026-04-17 | Supabase integration for local development | ✅ Complete |
+| #26 | 2026-03-26 | Local development database initialization | ✅ Complete |
 | #25 | 2026-03-25 | Render backend deployment | ✅ Complete |
 | #24 | 2026-02-24 | Bundle size optimization | ✅ Complete |
 | #23 | 2026-02-24 | Mangum version mismatch | ✅ Complete |
@@ -695,12 +845,13 @@ pip install --user -r requirements.txt
 
 ---
 
-**Last Updated:** 2026-03-25
-**Claude Model:** Opus 4.5
+**Last Updated:** 2026-04-17
+**Claude Model:** Opus 4.6
 **Status:** 🎉 LIVE ON RENDER + VERCEL
 **Deployments:**
 - Render: https://resumate-backend-4s4r.onrender.com
 - Vercel: https://resumate-backend.vercel.app
-- Frontend: https://resumate-frontend.vercel.app
-**Documentation:** Bug Fix #25 - Render Backend Deployment
+- Frontend: https://resumate-frontend-three.vercel.app
+- Database: Supabase PostgreSQL (ap-northeast-2)
+**Documentation:** Enhancement #27 - Supabase Integration for Local Development
 
